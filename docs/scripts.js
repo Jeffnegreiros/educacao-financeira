@@ -74,6 +74,7 @@ function setupEventListeners() {
   });
 
   document.getElementById("exportBtn").addEventListener("click", exportData);
+  document.getElementById("exportPdfBtn").addEventListener("click", exportPDF);
   document.getElementById("clearBtn").addEventListener("click", clearAllData);
 }
 
@@ -238,4 +239,39 @@ function clearAllData() {
       alert("✓ Todos os dados foram removidos.");
     }
   }
+}
+
+// Exportar página atual (conteúdo da `.container`) para PDF
+function exportPDF() {
+  if (transactions.length === 0) {
+    if (!confirm('Não há transações. Deseja gerar um PDF vazio do relatório?')) return;
+  }
+
+  // Clona o container para remover elementos interativos
+  const container = document.querySelector('.container');
+  const clone = container.cloneNode(true);
+
+  // Remover botões do clone para impressão limpa
+  clone.querySelectorAll('button').forEach(btn => btn.remove());
+
+  // Inserir temporariamente na página fora da viewport
+  clone.style.position = 'absolute';
+  clone.style.left = '-9999px';
+  document.body.appendChild(clone);
+
+  const opt = {
+    margin:       10,
+    filename:     `financas_${new Date().toISOString().split('T')[0]}.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2 },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  // Gera e baixa o PDF
+  html2pdf().set(opt).from(clone).save().then(() => {
+    document.body.removeChild(clone);
+  }).catch(() => {
+    document.body.removeChild(clone);
+    alert('Erro ao gerar o PDF. Tente novamente.');
+  });
 }
