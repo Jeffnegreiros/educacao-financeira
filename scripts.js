@@ -73,9 +73,12 @@ function setupEventListeners() {
     });
   });
 
-  document.getElementById("exportBtn").addEventListener("click", exportData);
-  document.getElementById("exportPdfBtn").addEventListener("click", exportPDF);
-  document.getElementById("clearBtn").addEventListener("click", clearAllData);
+  const exportBtnEl = document.getElementById("exportBtn");
+  if (exportBtnEl) exportBtnEl.addEventListener("click", exportData);
+  const exportPdfBtnEl = document.getElementById("exportPdfBtn");
+  if (exportPdfBtnEl) exportPdfBtnEl.addEventListener("click", exportPDF);
+  const clearBtnEl = document.getElementById("clearBtn");
+  if (clearBtnEl) clearBtnEl.addEventListener("click", clearAllData);
 }
 
 // Adicionar transação
