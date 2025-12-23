@@ -281,29 +281,95 @@ function exportPDF() {
     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
 
-  // Tenta abrir o PDF em nova aba (melhor experiência); se falhar, faz download
-  html2pdf().set(opt).from(clone).toPdf().get('pdf').then((pdf) => {
-    try {
-      const blob = pdf.output('blob');
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      document.body.removeChild(clone);
-    } catch (err) {
-      // fallback para download
-      html2pdf().set(opt).from(clone).save().then(() => {
-        document.body.removeChild(clone);
-      }).catch(() => {
-        document.body.removeChild(clone);
-        alert('Erro ao gerar o PDF. Tente novamente.');
-      });
-    }
-  }).catch(() => {
-    // fallback direto para save
-    html2pdf().set(opt).from(clone).save().then(() => {
-      document.body.removeChild(clone);
-    }).catch(() => {
-      document.body.removeChild(clone);
-      alert('Erro ao gerar o PDF. Tente novamente.');
-    });
-  });
+   // Tenta abrir o PDF em nova aba (melhor experiência); se popup for bloqueado, mostra fallback visível
+   html2pdf().set(opt).from(clone).toPdf().get('pdf').then((pdf) => {
+     const blob = pdf.output('blob');
+     const url = URL.createObjectURL(blob);
+     const newWin = window.open(url, '_blank');
+     if (newWin) {
+       // abriu em nova aba — remove clone após curto delay
+       setTimeout(() => document.body.removeChild(clone), 1000);
+     } else {
+       // popup bloqueado — mostrar fallback com link e botão de download
+       document.body.removeChild(clone);
+       showPdfFallback(url);
+     }
+   }).catch(() => {
+     // fallback direto para save
+     html2pdf().set(opt).from(clone).save().then(() => {
+       document.body.removeChild(clone);
+     }).catch(() => {
+       document.body.removeChild(clone);
+       alert('Erro ao gerar o PDF. Tente novamente.');
+     });
+   });
+ }
+
+ // Mostra overlay com link para abrir/baixar o PDF quando popup é bloqueado
+ function showPdfFallback(url) {
+   // criar overlay
+   const overlay = document.createElement('div');
+   overlay.style.position = 'fixed';
+   overlay.style.left = 0;
+   overlay.style.top = 0;
+   overlay.style.width = '100%';
+   overlay.style.height = '100%';
+   overlay.style.background = 'rgba(0,0,0,0.6)';
+   overlay.style.display = 'flex';
+   overlay.style.alignItems = 'center';
+   overlay.style.justifyContent = 'center';
+   overlay.style.zIndex = 10000;
+
+   const box = document.createElement('div');
+   box.style.background = '#fff';
+   box.style.padding = '20px';
+   box.style.borderRadius = '8px';
+   box.style.maxWidth = '90%';
+   box.style.textAlign = 'center';
+
+   const title = document.createElement('div');
+   title.textContent = 'Popup bloqueado — abra ou baixe o PDF manualmente';
+   title.style.marginBottom = '12px';
+   title.style.fontWeight = '700';
+
+   const link = document.createElement('a');
+   link.href = url;
+   link.target = '_blank';
+   link.rel = 'noopener noreferrer';
+   link.textContent = 'Abrir PDF em nova aba';
+   link.style.display = 'inline-block';
+   link.style.margin = '8px 0';
+   link.style.color = '#067df7';
+
+   const dl = document.createElement('a');
+   dl.href = url;
+   dl.download = '';
+   dl.textContent = 'Baixar PDF';
+   dl.style.display = 'inline-block';
+   dl.style.margin = '8px 12px';
+   dl.style.color = '#067df7';
+
+   const close = document.createElement('button');
+   close.textContent = 'Fechar';
+   close.style.display = 'block';
+   close.style.margin = '14px auto 0 auto';
+   close.style.padding = '8px 14px';
+   close.style.borderRadius = '6px';
+   close.style.border = 'none';
+   close.style.background = '#667eea';
+   close.style.color = 'white';
+   close.style.cursor = 'pointer';
+
+   close.addEventListener('click', () => {
+     try { URL.revokeObjectURL(url); } catch(e){}
+     document.body.removeChild(overlay);
+   });
+
+   box.appendChild(title);
+   box.appendChild(link);
+   box.appendChild(dl);
+   box.appendChild(close);
+   overlay.appendChild(box);
+   document.body.appendChild(overlay);
+ }
 }
