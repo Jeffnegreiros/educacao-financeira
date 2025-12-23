@@ -1,0 +1,247 @@
+// Dados das transações
+let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+let currentFilter = "todas";
+
+// Categorias por tipo
+const categories = {
+  receita: [
+    "Salário",
+    "Freelance",
+    "Investimentos",
+    "Venda",
+    "Aluguel Recebido",
+    "Outros",
+  ],
+  despesa: [
+    "Alimentação",
+    "Transporte",
+    "Moradia",
+    "Saúde",
+    "Educação",
+    "Diversão",
+    "Compras",
+    "Contas",
+    "Outros",
+  ],
+};
+
+// Inicializar app
+document.addEventListener("DOMContentLoaded", () => {
+  setTodayDate();
+  updateCategoryOptions();
+  setupEventListeners();
+  renderTransactions();
+  updateBalance();
+});
+
+// Definir data de hoje como padrão
+function setTodayDate() {
+  const today = new Date().toISOString().split("T")[0];
+  document.getElementById("data").value = today;
+}
+
+// Atualizar opções de categoria
+function updateCategoryOptions() {
+  const tipo = document.getElementById("tipo").value;
+  const categoriaSelect = document.getElementById("categoria");
+  categoriaSelect.innerHTML = '<option value="">Selecione...</option>';
+  categories[tipo].forEach((cat) => {
+    const option = document.createElement("option");
+    option.value = cat;
+    option.textContent = cat;
+    categoriaSelect.appendChild(option);
+  });
+}
+
+// Configurar event listeners
+function setupEventListeners() {
+  document
+    .getElementById("transactionForm")
+    .addEventListener("submit", addTransaction);
+  document
+    .getElementById("tipo")
+    .addEventListener("change", updateCategoryOptions);
+
+  document.querySelectorAll(".filter-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      document
+        .querySelectorAll(".filter-btn")
+        .forEach((b) => b.classList.remove("active"));
+      e.target.classList.add("active");
+      currentFilter = e.target.dataset.filter;
+      renderTransactions();
+    });
+  });
+
+  document.getElementById("exportBtn").addEventListener("click", exportData);
+  document.getElementById("clearBtn").addEventListener("click", clearAllData);
+}
+
+// Adicionar transação
+function addTransaction(e) {
+  e.preventDefault();
+
+  const descricao = document.getElementById("descricao").value;
+  const valor = parseFloat(document.getElementById("valor").value);
+  const tipo = document.getElementById("tipo").value;
+  const categoria = document.getElementById("categoria").value;
+  const data = document.getElementById("data").value;
+
+  if (!descricao || !valor || !categoria || !data) {
+    alert("Por favor, preencha todos os campos!");
+    return;
+  }
+
+  const transaction = {
+    id: Date.now(),
+    descricao,
+    valor,
+    tipo,
+    categoria,
+    data,
+  };
+
+  transactions.push(transaction);
+  saveTransactions();
+
+  // Limpar formulário
+  document.getElementById("transactionForm").reset();
+  setTodayDate();
+
+  renderTransactions();
+  updateBalance();
+}
+
+// Deletar transação
+function deleteTransaction(id) {
+  if (confirm("Tem certeza que deseja deletar esta transação?")) {
+    transactions = transactions.filter((t) => t.id !== id);
+    saveTransactions();
+    renderTransactions();
+    updateBalance();
+  }
+}
+
+// Renderizar transações
+function renderTransactions() {
+  const listContainer = document.getElementById("transactionsList");
+
+  let filtered = transactions;
+  if (currentFilter !== "todas") {
+    filtered = transactions.filter((t) => t.tipo === currentFilter);
+  }
+
+  // Ordenar por data decrescente
+  filtered.sort((a, b) => new Date(b.data) - new Date(a.data));
+
+  if (filtered.length === 0) {
+    listContainer.innerHTML =
+      '<p class="empty-message">Nenhuma transação registrada.</p>';
+    return;
+  }
+
+  listContainer.innerHTML = filtered
+    .map(
+      (transaction) => `
+        <div class="transaction-item ${transaction.tipo}">
+            <div class="transaction-info">
+                <div class="transaction-descricao">${
+                  transaction.descricao
+                }</div>
+                <div class="transaction-meta">
+                    ${transaction.categoria} • ${new Date(
+        transaction.data
+      ).toLocaleDateString("pt-BR")}
+                </div>
+            </div>
+            <div class="transaction-value ${transaction.tipo}">
+                ${
+                  transaction.tipo === "receita" ? "+" : "-"
+                } R$ ${transaction.valor.toFixed(2)}
+            </div>
+            <button class="delete-btn" onclick="deleteTransaction(${
+              transaction.id
+            })" title="Deletar">🗑️</button>
+        </div>
+    `
+    )
+    .join("");
+}
+
+// Atualizar saldo
+function updateBalance() {
+  const totalReceita = transactions
+    .filter((t) => t.tipo === "receita")
+    .reduce((sum, t) => sum + t.valor, 0);
+
+  const totalDespesa = transactions
+    .filter((t) => t.tipo === "despesa")
+    .reduce((sum, t) => sum + t.valor, 0);
+
+  const saldo = totalReceita - totalDespesa;
+
+  document.getElementById(
+    "totalReceita"
+  ).textContent = `R$ ${totalReceita.toFixed(2)}`;
+  document.getElementById(
+    "totalDespesa"
+  ).textContent = `R$ ${totalDespesa.toFixed(2)}`;
+  document.getElementById("saldo").textContent = `R$ ${saldo.toFixed(2)}`;
+
+  // Mudar cor do saldo
+  const saldoElement = document.getElementById("saldo");
+  const saldoCard = saldoElement.parentElement;
+  if (saldo < 0) {
+    saldoCard.classList.add("despesa");
+    saldoCard.classList.remove("receita", "balance");
+  } else if (saldo > 0) {
+    saldoCard.classList.add("receita");
+    saldoCard.classList.remove("despesa", "balance");
+  } else {
+    saldoCard.classList.remove("receita", "despesa");
+    saldoCard.classList.add("balance");
+  }
+}
+
+// Salvar no localStorage
+function saveTransactions() {
+  localStorage.setItem("transactions", JSON.stringify(transactions));
+}
+
+// Exportar dados
+function exportData() {
+  if (transactions.length === 0) {
+    alert("Nenhuma transação para exportar!");
+    return;
+  }
+
+  let csv = "Data,Descrição,Categoria,Tipo,Valor\n";
+
+  transactions.forEach((t) => {
+    csv += `${t.data},${t.descricao},${t.categoria},${
+      t.tipo
+    },R$ ${t.valor.toFixed(2)}\n`;
+  });
+
+  const link = document.createElement("a");
+  link.href = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+  link.download = `financas_${new Date().toISOString().split("T")[0]}.csv`;
+  link.click();
+}
+
+// Limpar todos os dados
+function clearAllData() {
+  if (
+    confirm(
+      "⚠️ Tem certeza que deseja deletar TODAS as transações? Esta ação não pode ser desfeita!"
+    )
+  ) {
+    if (confirm("Última confirmação: deseja realmente deletar tudo?")) {
+      transactions = [];
+      saveTransactions();
+      renderTransactions();
+      updateBalance();
+      alert("✓ Todos os dados foram removidos.");
+    }
+  }
+}
