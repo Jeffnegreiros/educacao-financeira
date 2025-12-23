@@ -263,9 +263,14 @@ function exportPDF() {
   // Remover botões do clone para impressão limpa
   clone.querySelectorAll('button').forEach(btn => btn.remove());
 
-  // Inserir temporariamente na página fora da viewport
-  clone.style.position = 'absolute';
-  clone.style.left = '-9999px';
+  // Inserir temporariamente na página de modo invisível, mas visível para layout
+  // (html2canvas precisa que o elemento tenha tamanho computado)
+  clone.style.position = 'fixed';
+  clone.style.left = '0';
+  clone.style.top = '0';
+  clone.style.width = container.offsetWidth + 'px';
+  clone.style.visibility = 'hidden';
+  clone.style.zIndex = '9999';
   document.body.appendChild(clone);
 
   const opt = {
