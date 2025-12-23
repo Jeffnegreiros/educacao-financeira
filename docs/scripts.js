@@ -267,11 +267,29 @@ function exportPDF() {
     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
 
-  // Gera e baixa o PDF
-  html2pdf().set(opt).from(clone).save().then(() => {
-    document.body.removeChild(clone);
+  // Tenta abrir o PDF em nova aba (melhor experiência); se falhar, faz download
+  html2pdf().set(opt).from(clone).toPdf().get('pdf').then((pdf) => {
+    try {
+      const blob = pdf.output('blob');
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      document.body.removeChild(clone);
+    } catch (err) {
+      // fallback para download
+      html2pdf().set(opt).from(clone).save().then(() => {
+        document.body.removeChild(clone);
+      }).catch(() => {
+        document.body.removeChild(clone);
+        alert('Erro ao gerar o PDF. Tente novamente.');
+      });
+    }
   }).catch(() => {
-    document.body.removeChild(clone);
-    alert('Erro ao gerar o PDF. Tente novamente.');
+    // fallback direto para save
+    html2pdf().set(opt).from(clone).save().then(() => {
+      document.body.removeChild(clone);
+    }).catch(() => {
+      document.body.removeChild(clone);
+      alert('Erro ao gerar o PDF. Tente novamente.');
+    });
   });
 }
